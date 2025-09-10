@@ -366,23 +366,31 @@ class SettingsScreen(Screen):
     """Settings configuration screen."""
     
     BINDINGS = [
-        Binding("escape", "back", "Back"),
         Binding("1", "toggle_notifications", "Toggle Notifications"),
-        Binding("2", "change_theme", "Change Theme"),
-        Binding("3", "change_results_count", "Results Count"),
-        Binding("4", "reset_settings", "Reset Settings"),
+        Binding("2", "change_results_count", "Results Count"),
+        Binding("3", "toggle_autosave", "Toggle Auto-save"),
+        Binding("4", "toggle_summaries", "Toggle Summaries"),
+        Binding("r", "reset_settings", "Reset Settings"),
         Binding("s", "save_settings", "Save Settings"),
     ]
     
     def __init__(self):
         super().__init__()
-        self.settings = {
-            "notifications": True,
-            "theme": "dark",
-            "results_per_search": 15,
-            "auto_save": True,
-            "show_summaries": True
-        }
+        self.settings = self.load_settings()
+    
+    def load_settings(self):
+        """Load settings from config file or use defaults."""
+        try:
+            import json
+            with open('settings.json', 'r') as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {
+                "notifications": True,
+                "results_per_search": 15,
+                "auto_save": True,
+                "show_summaries": True
+            }
     
     def compose(self) -> ComposeResult:
         yield Header()
@@ -391,12 +399,11 @@ class SettingsScreen(Screen):
         # Settings options in a container
         with Vertical(classes="settings-container"):
             yield Static("1. Notifications: " + ("✓ Enabled" if self.settings["notifications"] else "✗ Disabled"), classes="setting-item")
-            yield Static("2. Theme: " + self.settings["theme"].title(), classes="setting-item")
-            yield Static("3. Search Results: " + str(self.settings["results_per_search"]) + " papers", classes="setting-item")
-            yield Static("4. Auto-save: " + ("✓ Enabled" if self.settings["auto_save"] else "✗ Disabled"), classes="setting-item")
-            yield Static("5. Show Summaries: " + ("✓ Enabled" if self.settings["show_summaries"] else "✗ Disabled"), classes="setting-item")
+            yield Static("2. Search Results: " + str(self.settings["results_per_search"]) + " papers", classes="setting-item")
+            yield Static("3. Auto-save: " + ("✓ Enabled" if self.settings["auto_save"] else "✗ Disabled"), classes="setting-item")
+            yield Static("4. Show Summaries: " + ("✓ Enabled" if self.settings["show_summaries"] else "✗ Disabled"), classes="setting-item")
         
-        yield Static("1-5: Toggle  r: Reset  s: Save  Esc: Back", classes="help")
+        yield Static("1-4: Toggle  r: Reset  s: Save  Esc: Back", classes="help")
         yield Footer()
     
     def action_back(self):
@@ -407,11 +414,7 @@ class SettingsScreen(Screen):
         self.refresh_settings()
     
     def action_change_theme(self):
-        themes = ["dark", "light", "blue", "green"]
-        current_idx = themes.index(self.settings["theme"])
-        next_idx = (current_idx + 1) % len(themes)
-        self.settings["theme"] = themes[next_idx]
-        self.refresh_settings()
+        pass  # Theme switching removed - use textual themes
     
     def action_change_results_count(self):
         counts = [5, 10, 15, 20, 25]
@@ -431,7 +434,6 @@ class SettingsScreen(Screen):
     def action_reset_settings(self):
         self.settings = {
             "notifications": True,
-            "theme": "dark",
             "results_per_search": 15,
             "auto_save": True,
             "show_summaries": True
@@ -440,19 +442,24 @@ class SettingsScreen(Screen):
         self.app.notify("Settings reset to defaults")
     
     def action_save_settings(self):
-        # Here you would save to a config file
-        self.app.notify("Settings saved!")
+        """Save settings to config file."""
+        try:
+            import json
+            with open('settings.json', 'w') as f:
+                json.dump(self.settings, f, indent=2)
+            self.app.notify("Settings saved!")
+        except Exception as e:
+            self.app.notify(f"Error saving settings: {str(e)}")
     
     def refresh_settings(self):
         """Refresh the settings display."""
         # Update the existing settings display
         settings_items = list(self.query(".setting-item"))
-        if len(settings_items) >= 5:
+        if len(settings_items) >= 4:
             settings_items[0].update("1. Notifications: " + ("✓ Enabled" if self.settings["notifications"] else "✗ Disabled"))
-            settings_items[1].update("2. Theme: " + self.settings["theme"].title())
-            settings_items[2].update("3. Search Results: " + str(self.settings["results_per_search"]) + " papers")
-            settings_items[3].update("4. Auto-save: " + ("✓ Enabled" if self.settings["auto_save"] else "✗ Disabled"))
-            settings_items[4].update("5. Show Summaries: " + ("✓ Enabled" if self.settings["show_summaries"] else "✗ Disabled"))
+            settings_items[1].update("2. Search Results: " + str(self.settings["results_per_search"]) + " papers")
+            settings_items[2].update("3. Auto-save: " + ("✓ Enabled" if self.settings["auto_save"] else "✗ Disabled"))
+            settings_items[3].update("4. Show Summaries: " + ("✓ Enabled" if self.settings["show_summaries"] else "✗ Disabled"))
 
 
 class BrowseScreen(Screen):
@@ -685,10 +692,6 @@ class ArxivTUIApp(App):
         color: $text;
         background: transparent;
         border-bottom: solid $primary 20%;
-    }
-    
-    .setting-item:hover {
-        background: $primary 10%;
     }
     """
     
