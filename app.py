@@ -59,24 +59,73 @@ class MainMenuScreen(Screen):
         self.app.exit()
 
 
+class PaperListItem(ListItem):
+    """Custom list item for displaying paper information."""
+    
+    def __init__(self, paper: Paper, existing_status: str = None):
+        super().__init__()
+        self.paper = paper
+        self.existing_status = existing_status
+    
+    def compose(self) -> ComposeResult:
+        status_text = f"[{self.paper.status.value}]"
+        if self.existing_status:
+            status_text = f"[{self.existing_status}]"
+        
+        # Color coding based on status
+        if self.paper.status == ReadingStatus.TO_READ or self.existing_status == "to_read":
+            status_color = "green"
+        elif self.paper.status == ReadingStatus.READING or self.existing_status == "reading":
+            status_color = "yellow"
+        else:  # READ
+            status_color = "dim"
+        
+        # Create rich text with colors
+        title_text = Text(self.paper.title, style="bold")
+        authors_text = Text(f"Authors: {', '.join(self.paper.authors[:3])}{'...' if len(self.paper.authors) > 3 else ''}", style="dim")
+        id_text = Text(f"ID: {self.paper.arxiv_id} ", style="")
+        status_label = Text(status_text, style=status_color)
+        date_text = Text(f"Published: {self.paper.published.strftime('%Y-%m-%d')}", style="dim")
+        summary_text = Text(f"Summary: {self.paper.summary[:80]}...", style="italic dim")
+        
+        item_text = Text.assemble(
+            title_text, "\n",
+            authors_text, "\n",
+            id_text, status_label, "\n",
+            date_text, "\n",
+            summary_text
+        )
+        
+        yield Label(item_text)
+
+
 class SearchScreen(Screen):
-    """Simple search interface."""
+    """Enhanced search interface with interactive results."""
     
     BINDINGS = [
         Binding("escape", "back", "Back"),
         Binding("enter", "search", "Search"),
+        Binding("up", "navigate_up", "Navigate Up"),
+        Binding("down", "navigate_down", "Navigate Down"),
+        Binding("1", "mark_to_read", "Mark To Read"),
+        Binding("2", "mark_reading", "Mark Reading"),
+        Binding("3", "mark_read", "Mark Read"),
+        Binding("a", "add_to_list", "Add to List"),
+        Binding("i", "view_details", "View Details"),
     ]
+    
+    def __init__(self):
+        super().__init__()
+        self.search_results = []
+        self.current_search_query = ""
     
     def compose(self) -> ComposeResult:
         yield Header()
         yield Static("Search Papers", classes="screen-title")
-        yield Static("")
         yield Input(placeholder="Type your search query and press Enter", id="search-input")
-        yield Static("")
         yield Static("Search Results:", classes="results-header")
-        yield Static("Results will appear below...", id="search-results")
-        yield Static("")
-        yield Static("Press Enter to search, Esc to go back", classes="help")
+        yield ListView(id="search-results")
+        yield Static("↑↓:Navigate  1/2/3:Status  a:Add  i:Details  Enter:Search  Esc:Back", classes="help")
         yield Footer()
     
     def on_mount(self):
@@ -90,6 +139,7 @@ class SearchScreen(Screen):
         if event.input.id == "search-input":
             query = event.value.strip()
             if query:
+                self.current_search_query = query
                 self.perform_search(query)
     
     def action_search(self):
@@ -97,33 +147,111 @@ class SearchScreen(Screen):
         input_widget = self.query_one("#search-input")
         query = input_widget.value.strip()
         if query:
+            self.current_search_query = query
             self.perform_search(query)
+    
+    def action_navigate_up(self):
+        """Navigate up in the results list."""
+        results_list = self.query_one("#search-results")
+        if results_list.children:
+            current_index = results_list.index or 0
+            if current_index > 0:
+                results_list.index = current_index - 1
+    
+    def action_navigate_down(self):
+        """Navigate down in the results list."""
+        results_list = self.query_one("#search-results")
+        if results_list.children:
+            current_index = results_list.index or 0
+            if current_index < len(results_list.children) - 1:
+                results_list.index = current_index + 1
+    
+    def action_mark_to_read(self):
+        """Mark selected paper as to_read."""
+        self.update_selected_paper_status(ReadingStatus.TO_READ)
+    
+    def action_mark_reading(self):
+        """Mark selected paper as reading."""
+        self.update_selected_paper_status(ReadingStatus.READING)
+    
+    def action_mark_read(self):
+        """Mark selected paper as read."""
+        self.update_selected_paper_status(ReadingStatus.READ)
+    
+    def action_add_to_list(self):
+        """Add selected paper to reading list."""
+        results_list = self.query_one("#search-results")
+        if results_list.index is not None and results_list.index < len(self.search_results):
+            paper = self.search_results[results_list.index]
+            handler = self.app.command_handler
+            
+            # Check if paper already exists
+            if handler.paper_store.paper_exists(paper.arxiv_id):
+                self.app.notify(f"Paper '{paper.title}' is already in your reading list")
+            else:
+                handler.paper_store.add_paper(paper)
+                self.app.notify(f"Added '{paper.title}' to your reading list")
+                # Refresh the search results to show updated status
+                self.perform_search(self.current_search_query)
+    
+    def action_view_details(self):
+        """View details of selected paper."""
+        results_list = self.query_one("#search-results")
+        if results_list.index is not None and results_list.index < len(self.search_results):
+            paper = self.search_results[results_list.index]
+            self.app.notify(f"Selected: {paper.title} (ID: {paper.arxiv_id})")
+    
+    def update_selected_paper_status(self, status: ReadingStatus):
+        """Update the status of the selected paper."""
+        results_list = self.query_one("#search-results")
+        if results_list.index is not None and results_list.index < len(self.search_results):
+            paper = self.search_results[results_list.index]
+            handler = self.app.command_handler
+            
+            # Check if paper exists in store, if not add it first
+            if not handler.paper_store.paper_exists(paper.arxiv_id):
+                handler.paper_store.add_paper(paper)
+            
+            # Update the status
+            handler.paper_store.update_paper_status(paper.arxiv_id, status)
+            
+            status_name = status.value.replace('_', ' ')
+            self.app.notify(f"Marked '{paper.title}' as {status_name}")
+            
+            # Refresh the search results to show updated status
+            self.perform_search(self.current_search_query)
     
     def perform_search(self, query: str):
         """Perform the search and update the results display."""
         try:
             handler = self.app.command_handler
-            papers = handler.arxiv_client.search_papers(query, 10)
+            papers = handler.arxiv_client.search_papers(query, 15)  # Increased to 15 results
+            self.search_results = papers
             
-            results_widget = self.query_one("#search-results")
+            results_list = self.query_one("#search-results")
+            results_list.clear()
+            
             if papers:
-                results_text = f"Found {len(papers)} papers:\n\n"
-                for i, paper in enumerate(papers, 1):
+                for paper in papers:
                     existing = handler.paper_store.get_paper(paper.arxiv_id)
-                    status = f"[{existing.status.value}]" if existing else "[new]"
-                    results_text += f"{i}. {paper.title}\n"
-                    results_text += f"   Authors: {', '.join(paper.authors[:3])}{'...' if len(paper.authors) > 3 else ''}\n"
-                    results_text += f"   ID: {paper.arxiv_id} {status}\n"
-                    results_text += f"   Published: {paper.published.strftime('%Y-%m-%d')}\n"
-                    results_text += f"   Summary: {paper.summary[:100]}...\n\n"
-                results_widget.update(results_text)
+                    existing_status = existing.status.value if existing else None
+                    
+                    list_item = PaperListItem(paper, existing_status)
+                    results_list.append(list_item)
+                
+                # Select first item if available
+                if results_list.children:
+                    results_list.index = 0
+                
                 self.app.notify(f"Found {len(papers)} papers for '{query}'")
             else:
-                results_widget.update("No papers found for your search.")
+                results_list.append(ListItem(Label("No papers found for your search.")))
                 self.app.notify(f"No papers found for '{query}'")
+                
         except Exception as e:
-            results_widget = self.query_one("#search-results")
-            results_widget.update(f"Error searching: {str(e)}")
+            results_list = self.query_one("#search-results")
+            results_list.clear()
+            results_list.append(ListItem(Label(f"Error searching: {str(e)}")))
             self.app.notify(f"Search error: {str(e)}")
 
 
@@ -248,20 +376,47 @@ class ArxivTUIApp(App):
     .results-header {
         text-style: bold;
         color: $primary;
-        margin: 1 0;
+        margin: 1 0 0 0;
     }
     
     #search-results {
-        height: auto;
-        max-height: 15;
-        overflow-y: scroll;
+        height: 1fr;
         border: solid $primary;
-        padding: 1;
+        padding: 0;
         margin: 1 0;
+        background: $surface;
+    }
+    
+    #search-results > ListItem {
+        height: auto;
+        padding: 1;
+        border-bottom: solid $primary 20%;
+    }
+    
+    #search-results > ListItem:hover {
+        background: $primary 10%;
+    }
+    
+    #search-results > ListItem.--highlight {
+        background: $primary 20%;
     }
     
     #search-input {
         margin: 1 0;
+        border: solid $primary;
+    }
+    
+    /* Status color coding */
+    .status-to-read {
+        color: $success;
+    }
+    
+    .status-reading {
+        color: $warning;
+    }
+    
+    .status-read {
+        color: $error;
     }
     """
     
