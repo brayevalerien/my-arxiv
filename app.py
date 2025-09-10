@@ -68,17 +68,20 @@ class PaperListItem(ListItem):
         self.existing_status = existing_status
     
     def compose(self) -> ComposeResult:
-        status_text = f"[{self.paper.status.value}]"
+        # Only show status if paper exists in database
         if self.existing_status:
             status_text = f"[{self.existing_status}]"
-        
-        # Color coding based on status
-        if self.paper.status == ReadingStatus.TO_READ or self.existing_status == "to_read":
-            status_color = "green"
-        elif self.paper.status == ReadingStatus.READING or self.existing_status == "reading":
-            status_color = "yellow"
-        else:  # READ
-            status_color = "dim"
+            
+            # Color coding based on status
+            if self.existing_status == "to_read":
+                status_color = "green"
+            elif self.existing_status == "reading":
+                status_color = "yellow"
+            else:  # READ
+                status_color = "dim"
+        else:
+            status_text = ""
+            status_color = ""
         
         # Create rich text with colors
         title_text = Text(self.paper.title, style="bold")
@@ -105,13 +108,13 @@ class SearchScreen(Screen):
     BINDINGS = [
         Binding("escape", "back", "Back"),
         Binding("enter", "search", "Search"),
+        Binding("tab", "focus_results", "Focus Results"),
         Binding("up", "navigate_up", "Navigate Up"),
         Binding("down", "navigate_down", "Navigate Down"),
         Binding("1", "mark_to_read", "Mark To Read"),
         Binding("2", "mark_reading", "Mark Reading"),
         Binding("3", "mark_read", "Mark Read"),
         Binding("a", "add_to_list", "Add to List"),
-        Binding("i", "view_details", "View Details"),
     ]
     
     def __init__(self):
@@ -125,7 +128,7 @@ class SearchScreen(Screen):
         yield Input(placeholder="Type your search query and press Enter", id="search-input")
         yield Static("Search Results:", classes="results-header")
         yield ListView(id="search-results")
-        yield Static("↑↓:Navigate  1/2/3:Status  a:Add  i:Details  Enter:Search  Esc:Back", classes="help")
+        yield Static("Tab:Focus Results  ↑↓:Navigate  1/2/3:Status  a:Add  Enter:Search  Esc:Back", classes="help")
         yield Footer()
     
     def on_mount(self):
@@ -133,6 +136,12 @@ class SearchScreen(Screen):
     
     def action_back(self):
         self.app.pop_screen()
+    
+    def action_focus_results(self):
+        """Focus the search results list."""
+        results_list = self.query_one("#search-results")
+        if results_list.children:
+            results_list.focus()
     
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle when user presses Enter in the input field."""
