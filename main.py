@@ -3,22 +3,30 @@ import os
 import sys
 from argparse import Namespace
 
+from app import run_tui
 from commands import CommandHandler
 
 
 def parse_arguments() -> Namespace:
     parser = argparse.ArgumentParser(prog="my-arxiv", description="Manage academic papers using the Arxiv API.")
-
-    parser.add_argument("command", help="Command to run: search, later, read, done, info, or list")
+    
+    # Add mode selection
+    parser.add_argument("--cli", action="store_true", help="Use command-line interface instead of TUI")
+    parser.add_argument("command", nargs="?", help="Command to run: search, later, read, done, info, or list")
     parser.add_argument("command_args", nargs="*", help="Arguments passed to the command")
 
     return parser.parse_args()
 
 
-def main():
-    args = parse_arguments()
-    command = args.command.lower()
+def run_cli_mode(args):
+    """Run in traditional CLI mode."""
+    command = args.command.lower() if args.command else None
     command_args = args.command_args
+    
+    if not command:
+        print("Usage: my-arxiv [--cli] <command> [args...]")
+        print("Use --cli flag for command-line mode, or run without flags for TUI")
+        return 1
     
     handler = CommandHandler()
     
@@ -76,6 +84,25 @@ def main():
         return 1
     
     return 0
+
+
+def main():
+    args = parse_arguments()
+    
+    # If --cli flag is set, use CLI mode
+    if args.cli:
+        return run_cli_mode(args)
+    
+    # Otherwise, launch TUI
+    try:
+        run_tui()
+        return 0
+    except KeyboardInterrupt:
+        return 0
+    except Exception as e:
+        print(f"Error starting TUI: {e}")
+        print("Falling back to CLI mode...")
+        return run_cli_mode(args)
 
 
 if __name__ == "__main__":

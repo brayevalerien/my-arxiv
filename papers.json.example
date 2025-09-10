@@ -1,0 +1,30 @@
+{
+  "example_paper_1": {
+    "arxiv_id": "1909.03550v1",
+    "title": "Lecture Notes: Optimization for Machine Learning",
+    "authors": [
+      "Elad Hazan"
+    ],
+    "summary": "Lecture notes on optimization for machine learning, derived from a course at Princeton University.",
+    "published": "2019-09-08T21:49:42+00:00",
+    "pdf_url": "http://arxiv.org/pdf/1909.03550v1",
+    "status": "read",
+    "added_date": "2025-09-10T23:20:09.021279",
+    "started_date": "2025-09-10T23:20:16.815986",
+    "completed_date": "2025-09-10T23:20:24.908838"
+  },
+  "example_paper_2": {
+    "arxiv_id": "1811.04422v1",
+    "title": "An Optimal Control View of Adversarial Machine Learning",
+    "authors": [
+      "Xiaojin Zhu"
+    ],
+    "summary": "I describe an optimal control view of adversarial machine learning, where the dynamical system is the learning algorithm.",
+    "published": "2018-11-11T00:00:00+00:00",
+    "pdf_url": "http://arxiv.org/pdf/1811.04422v1",
+    "status": "to_read",
+    "added_date": "2025-09-10T23:25:00.000000",
+    "started_date": null,
+    "completed_date": null
+  }
+}
