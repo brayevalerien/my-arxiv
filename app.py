@@ -16,10 +16,9 @@ class MainMenuScreen(Screen):
     BINDINGS = [
         Binding("1", "select_search", "Search Papers"),
         Binding("2", "select_browse", "Browse List"),
-        Binding("3", "select_details", "View Details"),
-        Binding("4", "select_import", "Import/Export"),
-        Binding("5", "select_settings", "Settings"),
-        Binding("6", "select_exit", "Exit"),
+        Binding("3", "select_import", "Import/Export"),
+        Binding("4", "select_settings", "Settings"),
+        Binding("5", "select_exit", "Exit"),
         Binding("q", "quit", "Quit"),
         Binding("enter", "select_current", "Select"),
         Binding("up", "navigate_up", "Navigate Up"),
@@ -32,13 +31,12 @@ class MainMenuScreen(Screen):
         yield ListView(
             ListItem(Label("1. Search Papers")),
             ListItem(Label("2. Browse Reading List")),
-            ListItem(Label("3. View Paper Details")),
-            ListItem(Label("4. Import/Export")),
-            ListItem(Label("5. Settings")),
-            ListItem(Label("6. Exit")),
+            ListItem(Label("3. Import/Export")),
+            ListItem(Label("4. Settings")),
+            ListItem(Label("5. Exit")),
             id="main-menu"
         )
-        yield Static("Use 1-6, arrows, or Enter", classes="help")
+        yield Static("Use 1-5, arrows, or Enter", classes="help")
         yield Footer()
     
     def on_mount(self):
@@ -56,9 +54,6 @@ class MainMenuScreen(Screen):
     
     def action_select_browse(self):
         self.app.push_screen("browse")
-    
-    def action_select_details(self):
-        self.app.push_screen("details")
     
     def action_select_import(self):
         self.app.push_screen("import")
@@ -91,7 +86,7 @@ class MainMenuScreen(Screen):
         menu_list = self.query_one("#main-menu")
         if menu_list.index is None:
             menu_list.index = 0
-        elif menu_list.index < 5:  # 6 items total (0-5)
+        elif menu_list.index < 4:  # 5 items total (0-4)
             menu_list.index = menu_list.index + 1
     
     def select_menu_option(self, index: int):
@@ -101,12 +96,10 @@ class MainMenuScreen(Screen):
         elif index == 1:
             self.action_select_browse()
         elif index == 2:
-            self.action_select_details()
-        elif index == 3:
             self.action_select_import()
-        elif index == 4:
+        elif index == 3:
             self.action_select_settings()
-        elif index == 5:
+        elif index == 4:
             self.action_select_exit()
 
 
