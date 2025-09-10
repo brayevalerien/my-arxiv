@@ -14,15 +14,13 @@ class MainMenuScreen(Screen):
     """Main menu screen with interactive navigation."""
     
     BINDINGS = [
-        Binding("1", "select_search", "Search Papers"),
-        Binding("2", "select_browse", "Browse List"),
-        Binding("3", "select_import", "Import/Export"),
-        Binding("4", "select_settings", "Settings"),
-        Binding("5", "select_exit", "Exit"),
-        Binding("q", "quit", "Quit"),
-        Binding("enter", "select_current", "Select"),
-        Binding("up", "navigate_up", "Navigate Up"),
-        Binding("down", "navigate_down", "Navigate Down"),
+        Binding("1", "toggle_notifications", "Toggle Notifications"),
+        Binding("2", "change_theme", "Change Theme"),
+        Binding("3", "change_results_count", "Results Count"),
+        Binding("4", "toggle_autosave", "Toggle Auto-save"),
+        Binding("5", "toggle_summaries", "Toggle Summaries"),
+        Binding("r", "reset_settings", "Reset Settings"),
+        Binding("s", "save_settings", "Save Settings"),
     ]
     
     def compose(self) -> ComposeResult:
@@ -59,7 +57,8 @@ class MainMenuScreen(Screen):
         self.app.push_screen("import")
     
     def action_select_settings(self):
-        self.app.push_screen("settings")
+        settings_screen = SettingsScreen()
+        self.app.push_screen(settings_screen)
     
     def action_select_exit(self):
         self.app.exit()
@@ -363,6 +362,99 @@ class PaperDetailScreen(Screen):
         self.app.pop_screen()
 
 
+class SettingsScreen(Screen):
+    """Settings configuration screen."""
+    
+    BINDINGS = [
+        Binding("escape", "back", "Back"),
+        Binding("1", "toggle_notifications", "Toggle Notifications"),
+        Binding("2", "change_theme", "Change Theme"),
+        Binding("3", "change_results_count", "Results Count"),
+        Binding("4", "reset_settings", "Reset Settings"),
+        Binding("s", "save_settings", "Save Settings"),
+    ]
+    
+    def __init__(self):
+        super().__init__()
+        self.settings = {
+            "notifications": True,
+            "theme": "dark",
+            "results_per_search": 15,
+            "auto_save": True,
+            "show_summaries": True
+        }
+    
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Static("Settings", classes="screen-title")
+        
+        # Settings options in a container
+        with Vertical(classes="settings-container"):
+            yield Static("1. Notifications: " + ("✓ Enabled" if self.settings["notifications"] else "✗ Disabled"), classes="setting-item")
+            yield Static("2. Theme: " + self.settings["theme"].title(), classes="setting-item")
+            yield Static("3. Search Results: " + str(self.settings["results_per_search"]) + " papers", classes="setting-item")
+            yield Static("4. Auto-save: " + ("✓ Enabled" if self.settings["auto_save"] else "✗ Disabled"), classes="setting-item")
+            yield Static("5. Show Summaries: " + ("✓ Enabled" if self.settings["show_summaries"] else "✗ Disabled"), classes="setting-item")
+        
+        yield Static("1-5: Toggle  r: Reset  s: Save  Esc: Back", classes="help")
+        yield Footer()
+    
+    def action_back(self):
+        self.app.pop_screen()
+    
+    def action_toggle_notifications(self):
+        self.settings["notifications"] = not self.settings["notifications"]
+        self.refresh_settings()
+    
+    def action_change_theme(self):
+        themes = ["dark", "light", "blue", "green"]
+        current_idx = themes.index(self.settings["theme"])
+        next_idx = (current_idx + 1) % len(themes)
+        self.settings["theme"] = themes[next_idx]
+        self.refresh_settings()
+    
+    def action_change_results_count(self):
+        counts = [5, 10, 15, 20, 25]
+        current_idx = counts.index(self.settings["results_per_search"])
+        next_idx = (current_idx + 1) % len(counts)
+        self.settings["results_per_search"] = counts[next_idx]
+        self.refresh_settings()
+    
+    def action_toggle_autosave(self):
+        self.settings["auto_save"] = not self.settings["auto_save"]
+        self.refresh_settings()
+    
+    def action_toggle_summaries(self):
+        self.settings["show_summaries"] = not self.settings["show_summaries"]
+        self.refresh_settings()
+    
+    def action_reset_settings(self):
+        self.settings = {
+            "notifications": True,
+            "theme": "dark",
+            "results_per_search": 15,
+            "auto_save": True,
+            "show_summaries": True
+        }
+        self.refresh_settings()
+        self.app.notify("Settings reset to defaults")
+    
+    def action_save_settings(self):
+        # Here you would save to a config file
+        self.app.notify("Settings saved!")
+    
+    def refresh_settings(self):
+        """Refresh the settings display."""
+        # Update the existing settings display
+        settings_items = list(self.query(".setting-item"))
+        if len(settings_items) >= 5:
+            settings_items[0].update("1. Notifications: " + ("✓ Enabled" if self.settings["notifications"] else "✗ Disabled"))
+            settings_items[1].update("2. Theme: " + self.settings["theme"].title())
+            settings_items[2].update("3. Search Results: " + str(self.settings["results_per_search"]) + " papers")
+            settings_items[3].update("4. Auto-save: " + ("✓ Enabled" if self.settings["auto_save"] else "✗ Disabled"))
+            settings_items[4].update("5. Show Summaries: " + ("✓ Enabled" if self.settings["show_summaries"] else "✗ Disabled"))
+
+
 class BrowseScreen(Screen):
     """Paper browsing with keyboard navigation."""
     
@@ -576,6 +668,27 @@ class ArxivTUIApp(App):
         height: auto;
         max-height: 80%;
         overflow-y: auto;
+    }
+    
+    .settings-container {
+        margin: 1 2;
+        padding: 1;
+        border: solid $primary 30%;
+        background: $surface;
+        height: auto;
+    }
+    
+    .setting-item {
+        padding: 1;
+        margin: 0;
+        text-style: bold;
+        color: $text;
+        background: transparent;
+        border-bottom: solid $primary 20%;
+    }
+    
+    .setting-item:hover {
+        background: $primary 10%;
     }
     """
     
