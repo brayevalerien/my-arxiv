@@ -5,6 +5,7 @@ from textual.screen import Screen
 from textual.binding import Binding
 from textual.color import Color
 from rich.text import Text
+import os
 
 from commands import CommandHandler
 from models import Paper, ReadingStatus
@@ -377,6 +378,7 @@ class SettingsScreen(Screen):
         Binding("2", "change_results_count", "Results Count"),
         Binding("3", "toggle_autosave", "Toggle Auto-save"),
         Binding("4", "toggle_summaries", "Toggle Summaries"),
+        Binding("t", "change_theme", "Change Theme"),
         Binding("r", "reset_settings", "Reset Settings"),
         Binding("s", "save_settings", "Save Settings"),
     ]
@@ -400,7 +402,8 @@ class SettingsScreen(Screen):
                 "notifications": True,
                 "results_per_search": 15,
                 "auto_save": True,
-                "show_summaries": True
+                "show_summaries": True,
+                "theme": "monokai"
             }
     
     def compose(self) -> ComposeResult:
@@ -413,8 +416,9 @@ class SettingsScreen(Screen):
             yield Static("2. Search Results: " + str(self.settings["results_per_search"]) + " papers", classes="setting-item")
             yield Static("3. Auto-save: " + ("✓ Enabled" if self.settings["auto_save"] else "✗ Disabled"), classes="setting-item")
             yield Static("4. Show Summaries: " + ("✓ Enabled" if self.settings["show_summaries"] else "✗ Disabled"), classes="setting-item")
+            yield Static("t. Theme: " + self.settings.get("theme", "monokai"), classes="setting-item")
         
-        yield Static("1-4: Toggle  r: Reset  s: Save  Esc: Back", classes="help")
+        yield Static("1-4,t: Toggle  r: Reset  s: Save  Esc: Back", classes="help")
         yield Footer()
     
     def action_back(self):
@@ -425,7 +429,19 @@ class SettingsScreen(Screen):
         self.refresh_settings()
     
     def action_change_theme(self):
-        pass  # Theme switching removed - use textual themes
+        """Cycle through available textual themes."""
+        themes = ["monokai", "dark", "light", "solarized-dark", "solarized-light", "github-dark", "github-light"]
+        current_theme = self.settings.get("theme", "monokai")
+        try:
+            current_idx = themes.index(current_theme)
+            next_idx = (current_idx + 1) % len(themes)
+            self.settings["theme"] = themes[next_idx]
+            self.refresh_settings()
+            self.app.notify(f"Theme changed to {themes[next_idx]} - restart app to apply")
+        except ValueError:
+            # If current theme not in list, start with monokai
+            self.settings["theme"] = "monokai"
+            self.refresh_settings()
     
     def action_change_results_count(self):
         counts = [5, 10, 15, 20, 25]
@@ -447,7 +463,8 @@ class SettingsScreen(Screen):
             "notifications": True,
             "results_per_search": 15,
             "auto_save": True,
-            "show_summaries": True
+            "show_summaries": True,
+            "theme": "monokai"
         }
         self.refresh_settings()
         self.app.notify("Settings reset to defaults")
@@ -476,11 +493,12 @@ class SettingsScreen(Screen):
         """Refresh the settings display."""
         # Update the existing settings display
         settings_items = list(self.query(".setting-item"))
-        if len(settings_items) >= 4:
+        if len(settings_items) >= 5:
             settings_items[0].update("1. Notifications: " + ("✓ Enabled" if self.settings["notifications"] else "✗ Disabled"))
             settings_items[1].update("2. Search Results: " + str(self.settings["results_per_search"]) + " papers")
             settings_items[2].update("3. Auto-save: " + ("✓ Enabled" if self.settings["auto_save"] else "✗ Disabled"))
             settings_items[3].update("4. Show Summaries: " + ("✓ Enabled" if self.settings["show_summaries"] else "✗ Disabled"))
+            settings_items[4].update("t. Theme: " + self.settings.get("theme", "monokai"))
 
 
 class BrowseScreen(Screen):
@@ -728,9 +746,36 @@ class ArxivTUIApp(App):
     
     def on_mount(self):
         self.push_screen("main")
+    
+    def set_theme(self, theme: str) -> None:
+        """Set theme and persist it."""
+        super().set_theme(theme)
+        # Save theme for persistence
+        try:
+            theme_file = os.path.expanduser('~/.myarxiv_theme')
+            with open(theme_file, 'w') as f:
+                f.write(theme)
+        except Exception:
+            pass  # Don't fail if we can't save theme
 
 
 def run_tui():
     """Run the TUI application."""
+    import sys
+    import os
+    
+    # Check if theme is specified in command line
+    if '--theme' not in sys.argv:
+        # Check if there's a .textual_theme file for persistence
+        theme_file = os.path.expanduser('~/.myarxiv_theme')
+        if os.path.exists(theme_file):
+            with open(theme_file, 'r') as f:
+                theme = f.read().strip()
+                if theme:
+                    sys.argv.extend(['--theme', theme])
+        else:
+            # Default to monokai
+            sys.argv.extend(['--theme', 'monokai'])
+    
     app = ArxivTUIApp()
     app.run()
