@@ -14,13 +14,15 @@ class MainMenuScreen(Screen):
     """Main menu screen with interactive navigation."""
     
     BINDINGS = [
-        Binding("1", "toggle_notifications", "Toggle Notifications"),
-        Binding("2", "change_theme", "Change Theme"),
-        Binding("3", "change_results_count", "Results Count"),
-        Binding("4", "toggle_autosave", "Toggle Auto-save"),
-        Binding("5", "toggle_summaries", "Toggle Summaries"),
-        Binding("r", "reset_settings", "Reset Settings"),
-        Binding("s", "save_settings", "Save Settings"),
+        Binding("1", "select_search", "Search Papers"),
+        Binding("2", "select_browse", "Browse List"),
+        Binding("3", "select_import", "Import/Export"),
+        Binding("4", "select_settings", "Settings"),
+        Binding("5", "select_exit", "Exit"),
+        Binding("q", "quit", "Quit"),
+        Binding("enter", "select_current", "Select"),
+        Binding("up", "navigate_up", "Navigate Up"),
+        Binding("down", "navigate_down", "Navigate Down"),
     ]
     
     def compose(self) -> ComposeResult:
@@ -36,6 +38,10 @@ class MainMenuScreen(Screen):
         )
         yield Static("Use 1-5, arrows, or Enter", classes="help")
         yield Footer()
+    
+    def action_quit(self):
+        """Quit the application."""
+        self.app.exit()
     
     def on_mount(self):
         self.query_one("#main-menu").focus()
