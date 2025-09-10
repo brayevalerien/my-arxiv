@@ -71,8 +71,9 @@ class SearchScreen(Screen):
         yield Header()
         yield Static("Search Papers", classes="screen-title")
         yield Static("")
-        yield Input(placeholder="Enter search query and press Enter", id="search-input")
+        yield Input(placeholder="Type your search query and press Enter", id="search-input")
         yield Static("")
+        yield Static("Search Results:", classes="results-header")
         yield Static("Results will appear below...", id="search-results")
         yield Static("")
         yield Static("Press Enter to search, Esc to go back", classes="help")
@@ -84,27 +85,46 @@ class SearchScreen(Screen):
     def action_back(self):
         self.app.pop_screen()
     
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle when user presses Enter in the input field."""
+        if event.input.id == "search-input":
+            query = event.value.strip()
+            if query:
+                self.perform_search(query)
+    
     def action_search(self):
+        """Handle search action from key binding."""
         input_widget = self.query_one("#search-input")
         query = input_widget.value.strip()
         if query:
             self.perform_search(query)
     
     def perform_search(self, query: str):
-        handler = self.app.command_handler
-        papers = handler.search(query, 10)
-        
-        results_widget = self.query_one("#search-results")
-        if papers:
-            results_text = f"Found {len(papers)} papers:\n\n"
-            for i, paper in enumerate(papers, 1):
-                existing = handler.paper_store.get_paper(paper.arxiv_id)
-                status = f"[{existing.status.value}]" if existing else "[new]"
-                results_text += f"{i}. {paper.title}\n"
-                results_text += f"   ID: {paper.arxiv_id} {status}\n\n"
-            results_widget.update(results_text)
-        else:
-            results_widget.update("No papers found for your search.")
+        """Perform the search and update the results display."""
+        try:
+            handler = self.app.command_handler
+            papers = handler.arxiv_client.search_papers(query, 10)
+            
+            results_widget = self.query_one("#search-results")
+            if papers:
+                results_text = f"Found {len(papers)} papers:\n\n"
+                for i, paper in enumerate(papers, 1):
+                    existing = handler.paper_store.get_paper(paper.arxiv_id)
+                    status = f"[{existing.status.value}]" if existing else "[new]"
+                    results_text += f"{i}. {paper.title}\n"
+                    results_text += f"   Authors: {', '.join(paper.authors[:3])}{'...' if len(paper.authors) > 3 else ''}\n"
+                    results_text += f"   ID: {paper.arxiv_id} {status}\n"
+                    results_text += f"   Published: {paper.published.strftime('%Y-%m-%d')}\n"
+                    results_text += f"   Summary: {paper.summary[:100]}...\n\n"
+                results_widget.update(results_text)
+                self.app.notify(f"Found {len(papers)} papers for '{query}'")
+            else:
+                results_widget.update("No papers found for your search.")
+                self.app.notify(f"No papers found for '{query}'")
+        except Exception as e:
+            results_widget = self.query_one("#search-results")
+            results_widget.update(f"Error searching: {str(e)}")
+            self.app.notify(f"Search error: {str(e)}")
 
 
 class BrowseScreen(Screen):
@@ -223,6 +243,25 @@ class ArxivTUIApp(App):
         text-style: dim;
         text-align: center;
         margin: 1;
+    }
+    
+    .results-header {
+        text-style: bold;
+        color: $primary;
+        margin: 1 0;
+    }
+    
+    #search-results {
+        height: auto;
+        max-height: 15;
+        overflow-y: scroll;
+        border: solid $primary;
+        padding: 1;
+        margin: 1 0;
+    }
+    
+    #search-input {
+        margin: 1 0;
     }
     """
     
