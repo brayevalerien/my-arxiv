@@ -11,7 +11,7 @@ from models import Paper, ReadingStatus
 
 
 class MainMenuScreen(Screen):
-    """Main menu screen with numbered options."""
+    """Main menu screen with interactive navigation."""
     
     BINDINGS = [
         Binding("1", "select_search", "Search Papers"),
@@ -21,21 +21,35 @@ class MainMenuScreen(Screen):
         Binding("5", "select_settings", "Settings"),
         Binding("6", "select_exit", "Exit"),
         Binding("q", "quit", "Quit"),
+        Binding("enter", "select_current", "Select"),
+        Binding("up", "navigate_up", "Navigate Up"),
+        Binding("down", "navigate_down", "Navigate Down"),
     ]
     
     def compose(self) -> ComposeResult:
         yield Header()
         yield Static("my-arxiv - Academic Paper Manager", classes="title")
-        yield Static("")
-        yield Static("1. Search Papers")
-        yield Static("2. Browse Reading List")
-        yield Static("3. View Paper Details")
-        yield Static("4. Import/Export")
-        yield Static("5. Settings")
-        yield Static("6. Exit")
-        yield Static("")
-        yield Static("Use number keys or arrow keys to select", classes="help")
+        yield ListView(
+            ListItem(Label("1. Search Papers")),
+            ListItem(Label("2. Browse Reading List")),
+            ListItem(Label("3. View Paper Details")),
+            ListItem(Label("4. Import/Export")),
+            ListItem(Label("5. Settings")),
+            ListItem(Label("6. Exit")),
+            id="main-menu"
+        )
+        yield Static("Use 1-6, arrows, or Enter", classes="help")
         yield Footer()
+    
+    def on_mount(self):
+        self.query_one("#main-menu").focus()
+    
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """Handle when a list item is selected via Enter or click."""
+        # Get the index of the selected item
+        menu_list = self.query_one("#main-menu")
+        if menu_list.index is not None:
+            self.select_menu_option(menu_list.index)
     
     def action_select_search(self):
         self.app.push_screen("search")
@@ -57,6 +71,43 @@ class MainMenuScreen(Screen):
     
     def action_quit(self):
         self.app.exit()
+    
+    def action_select_current(self):
+        """Select the currently highlighted menu item."""
+        menu_list = self.query_one("#main-menu")
+        if menu_list.index is not None:
+            self.select_menu_option(menu_list.index)
+    
+    def action_navigate_up(self):
+        """Navigate up in the menu."""
+        menu_list = self.query_one("#main-menu")
+        if menu_list.index is None:
+            menu_list.index = 0
+        elif menu_list.index > 0:
+            menu_list.index = menu_list.index - 1
+    
+    def action_navigate_down(self):
+        """Navigate down in the menu."""
+        menu_list = self.query_one("#main-menu")
+        if menu_list.index is None:
+            menu_list.index = 0
+        elif menu_list.index < 5:  # 6 items total (0-5)
+            menu_list.index = menu_list.index + 1
+    
+    def select_menu_option(self, index: int):
+        """Select a menu option by index."""
+        if index == 0:
+            self.action_select_search()
+        elif index == 1:
+            self.action_select_browse()
+        elif index == 2:
+            self.action_select_details()
+        elif index == 3:
+            self.action_select_import()
+        elif index == 4:
+            self.action_select_settings()
+        elif index == 5:
+            self.action_select_exit()
 
 
 class PaperListItem(ListItem):
@@ -364,10 +415,10 @@ class ArxivTUIApp(App):
     """Main TUI application."""
     
     CSS = """
-    .title {
+     .title {
         text-align: center;
         text-style: bold;
-        margin: 1;
+        margin: 0;
     }
     
     .screen-title {
@@ -376,16 +427,38 @@ class ArxivTUIApp(App):
         margin: 1;
     }
     
-    .help {
+     .help {
         text-style: dim;
         text-align: center;
-        margin: 1;
+        margin: 0;
     }
     
     .results-header {
         text-style: bold;
         color: $primary;
         margin: 1 0 0 0;
+    }
+    
+     #main-menu {
+        height: auto;
+        border: none;
+        padding: 0;
+        margin: 0;
+        background: transparent;
+    }
+    
+    #main-menu > ListItem {
+        height: auto;
+        padding: 0;
+        border: none;
+    }
+    
+    #main-menu > ListItem:hover {
+        background: $primary 10%;
+    }
+    
+    #main-menu > ListItem.--highlight {
+        background: $primary 20%;
     }
     
     #search-results {
