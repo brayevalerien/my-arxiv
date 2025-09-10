@@ -315,12 +315,70 @@ class SearchScreen(Screen):
             self.app.notify(f"Search error: {str(e)}")
 
 
+class PaperDetailScreen(Screen):
+    """Detailed view of a single paper."""
+    
+    BINDINGS = [
+        Binding("escape", "back", "Back"),
+        Binding("enter", "back", "Back"),
+    ]
+    
+    def __init__(self, paper: Paper):
+        super().__init__()
+        self.paper = paper
+    
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Static("Paper Details", classes="screen-title")
+        yield Static("")
+        
+        # Create detailed paper information
+        status_color = ""
+        if self.paper.status == ReadingStatus.TO_READ:
+            status_color = "green"
+        elif self.paper.status == ReadingStatus.READING:
+            status_color = "yellow"
+        else:  # READ
+            status_color = "dim"
+        
+        # Format the paper details
+        details = Text.assemble(
+            Text("Title: ", style="bold"), Text(self.paper.title, style="bold white"), "\n\n",
+            Text("Authors: ", style="bold"), Text(", ".join(self.paper.authors), style=""), "\n\n",
+            Text("arXiv ID: ", style="bold"), Text(self.paper.arxiv_id, style=""), "\n\n",
+            Text("Status: ", style="bold"), Text(f"[{self.paper.status.value}]", style=status_color), "\n\n",
+            Text("Published: ", style="bold"), Text(self.paper.published.strftime('%Y-%m-%d'), style=""), "\n\n",
+            Text("Summary:\n", style="bold"), Text(self.paper.summary, style="italic"), "\n\n",
+            Text("PDF URL: ", style="bold"), Text(self.paper.pdf_url, style="blue underline"), "\n\n",
+            Text("Added to list: ", style="bold"), Text(self.paper.added_date.strftime('%Y-%m-%d %H:%M:%S'), style="dim"), "\n"
+        )
+        
+        # Add optional dates if they exist
+        if self.paper.started_date:
+            details.append(Text("Started reading: ", style="bold"))
+            details.append(Text(self.paper.started_date.strftime('%Y-%m-%d %H:%M:%S'), style="dim"))
+            details.append("\n")
+        
+        if self.paper.completed_date:
+            details.append(Text("Completed: ", style="bold"))
+            details.append(Text(self.paper.completed_date.strftime('%Y-%m-%d %H:%M:%S'), style="dim"))
+            details.append("\n")
+        
+        yield Static(details, classes="paper-details")
+        yield Static("")
+        yield Static("Enter or Esc: Return to list", classes="help")
+        yield Footer()
+    
+    def action_back(self):
+        self.app.pop_screen()
+
+
 class BrowseScreen(Screen):
     """Paper browsing with keyboard navigation."""
     
     BINDINGS = [
         Binding("escape", "back", "Back"),
-        Binding("enter", "select_paper", "Select"),
+        Binding("enter", "select_paper", "View Details"),
         Binding("1", "mark_to_read", "Mark To Read"),
         Binding("2", "mark_reading", "Mark Reading"),
         Binding("3", "mark_read", "Mark Read"),
@@ -337,11 +395,27 @@ class BrowseScreen(Screen):
         yield Static("")
         yield ListView(id="paper-list")
         yield Static("")
-        yield Static("↑↓:Navigate  Enter:Details  1/2/3:Status  Esc:Back", classes="help")
+        yield Static("↑↓:Navigate  Enter:View Details  1/2/3:Status  Esc:Back", classes="help")
         yield Footer()
     
     def on_mount(self):
         self.load_papers()
+        # Focus the list view and ensure first item is selected
+        list_view = self.query_one("#paper-list")
+        if list_view.children:
+            list_view.index = 0
+            list_view.focus()
+    
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """Handle when a list item is selected via Enter or click."""
+        self.app.notify("List item selected!")
+        self.action_select_paper()
+    
+    def on_key(self, event):
+        """Handle key presses to debug."""
+        if event.key == "enter":
+            self.app.notify("Enter key pressed!")
+            self.action_select_paper()
     
     def load_papers(self):
         handler = self.app.command_handler
@@ -374,7 +448,12 @@ class BrowseScreen(Screen):
             status_label = Text(status_text, style=status_color)
             
             item_text = Text.assemble(title_text, "\n", id_text, status_label)
-            list_view.append(ListItem(Label(item_text)))
+            list_item = ListItem(Label(item_text))
+            list_view.append(list_item)
+        
+        # Select first item if available
+        if list_view.children:
+            list_view.index = 0
     
     def action_back(self):
         self.app.pop_screen()
@@ -407,8 +486,9 @@ class BrowseScreen(Screen):
         list_view = self.query_one("#paper-list")
         if list_view.index is not None and list_view.index < len(self.papers):
             paper = self.papers[list_view.index]
-            # TODO: Implement detail view
-            self.app.notify(f"Selected: {paper.title}")
+            self.app.notify(f"Opening details for: {paper.title}")
+            detail_screen = PaperDetailScreen(paper)
+            self.app.push_screen(detail_screen)
 
 
 class ArxivTUIApp(App):
@@ -488,8 +568,8 @@ class ArxivTUIApp(App):
         border: solid $primary;
     }
     
-    /* Status color coding */
-    .status-to-read {
+     /* Status color coding */
+     .status-to-read {
         color: $success;
     }
     
@@ -499,6 +579,15 @@ class ArxivTUIApp(App):
     
     .status-read {
         color: $error;
+    }
+    
+    .paper-details {
+        margin: 1 2;
+        padding: 1;
+        border: solid $primary 50%;
+        background: $surface;
+        height: 1fr;
+        overflow-y: scroll;
     }
     """
     
