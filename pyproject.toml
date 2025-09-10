@@ -4,4 +4,4 @@ version = "0.1.0"
 description = "Manage academic papers using the Arxiv API and keep track of what you want to read and what you've already read."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = ["arxiv>=2.2.0"]
