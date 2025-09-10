@@ -320,7 +320,6 @@ class PaperDetailScreen(Screen):
     
     BINDINGS = [
         Binding("escape", "back", "Back"),
-        Binding("enter", "back", "Back"),
     ]
     
     def __init__(self, paper: Paper):
@@ -330,7 +329,6 @@ class PaperDetailScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Header()
         yield Static("Paper Details", classes="screen-title")
-        yield Static("")
         
         # Create detailed paper information
         status_color = ""
@@ -365,8 +363,7 @@ class PaperDetailScreen(Screen):
             details.append("\n")
         
         yield Static(details, classes="paper-details")
-        yield Static("")
-        yield Static("Enter or Esc: Return to list", classes="help")
+        yield Static("Esc: Return to list", classes="help")
         yield Footer()
     
     def action_back(self):
@@ -408,14 +405,7 @@ class BrowseScreen(Screen):
     
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         """Handle when a list item is selected via Enter or click."""
-        self.app.notify("List item selected!")
         self.action_select_paper()
-    
-    def on_key(self, event):
-        """Handle key presses to debug."""
-        if event.key == "enter":
-            self.app.notify("Enter key pressed!")
-            self.action_select_paper()
     
     def load_papers(self):
         handler = self.app.command_handler
@@ -483,12 +473,16 @@ class BrowseScreen(Screen):
             self.app.notify(f"Marked as read: {paper.title}")
     
     def action_select_paper(self):
+        """Open detailed view of selected paper."""
         list_view = self.query_one("#paper-list")
         if list_view.index is not None and list_view.index < len(self.papers):
             paper = self.papers[list_view.index]
-            self.app.notify(f"Opening details for: {paper.title}")
-            detail_screen = PaperDetailScreen(paper)
-            self.app.push_screen(detail_screen)
+            try:
+                detail_screen = PaperDetailScreen(paper)
+                self.app.push_screen(detail_screen)
+            except Exception as e:
+                # Fallback - just show basic info if detail screen fails
+                self.app.notify(f"Paper: {paper.title} (ID: {paper.arxiv_id})")
 
 
 class ArxivTUIApp(App):
@@ -586,8 +580,9 @@ class ArxivTUIApp(App):
         padding: 1;
         border: solid $primary 50%;
         background: $surface;
-        height: 1fr;
-        overflow-y: scroll;
+        height: auto;
+        max-height: 80%;
+        overflow-y: auto;
     }
     """
     
