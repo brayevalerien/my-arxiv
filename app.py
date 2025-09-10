@@ -366,6 +366,7 @@ class SettingsScreen(Screen):
     """Settings configuration screen."""
     
     BINDINGS = [
+        Binding("escape", "back", "Back"),
         Binding("1", "toggle_notifications", "Toggle Notifications"),
         Binding("2", "change_results_count", "Results Count"),
         Binding("3", "toggle_autosave", "Toggle Auto-save"),
@@ -377,6 +378,10 @@ class SettingsScreen(Screen):
     def __init__(self):
         super().__init__()
         self.settings = self.load_settings()
+    
+    def on_mount(self):
+        """Ensure the screen is properly focused when mounted."""
+        self.focus()
     
     def load_settings(self):
         """Load settings from config file or use defaults."""
@@ -450,6 +455,16 @@ class SettingsScreen(Screen):
             self.app.notify("Settings saved!")
         except Exception as e:
             self.app.notify(f"Error saving settings: {str(e)}")
+    
+    def action_back(self):
+        """Return to main menu."""
+        self.app.pop_screen()
+    
+    def on_key(self, event) -> None:
+        """Handle any key press to ensure escape works."""
+        if event.key == "escape":
+            self.action_back()
+            event.stop()  # Prevent further processing
     
     def refresh_settings(self):
         """Refresh the settings display."""
